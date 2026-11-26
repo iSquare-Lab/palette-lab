@@ -52,4 +52,4 @@ Node 22 or newer.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE).
+MIT, © 2026 iSquare Lab. See [LICENSE](LICENSE).

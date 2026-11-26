@@ -4,6 +4,11 @@
   "private": true,
   "description": "Generate harmonious OKLCH colour palettes, check contrast and export them.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iSquare-Lab/palette-lab"
+  },
+  "homepage": "https://github.com/iSquare-Lab/palette-lab",
   "type": "module",
   "engines": {
     "node": ">=22"

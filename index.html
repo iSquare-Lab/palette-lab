@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#131317" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   </head>
   <body>
     <a class="skip-link" href="#swatches">Skip to the palette</a>
@@ -178,11 +178,15 @@
     </main>
 
     <footer class="footer">
-      <p>
+      <p class="footer-keys">
         <kbd class="kbd">Space</kbd> new palette · <kbd class="kbd">1</kbd>–<kbd class="kbd">5</kbd> pick a colour ·
         <kbd class="kbd">L</kbd> lock it · <kbd class="kbd">C</kbd> copy its hex
       </p>
-      <p>Colours are generated in OKLCH and mapped into sRGB. Made by Strux.</p>
+      <p>
+        Colours are generated in OKLCH and mapped into sRGB ·
+        <a href="https://github.com/iSquare-Lab/palette-lab">Source on GitHub</a> ·
+        <a href="/THIRD_PARTY_NOTICES.txt">Licences</a>
+      </p>
     </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
