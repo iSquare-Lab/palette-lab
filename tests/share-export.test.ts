@@ -16,6 +16,33 @@ describe('URL hash', () => {
     expect(decoded?.harmony).toBe('triadic');
   });
 
+  it('leaves the lock part out when nothing is locked, and reads that back as all unlocked', () => {
+    const hash = encodeHash({ colors, locks: [false, false, false, false, false], harmony: 'auto' });
+    expect(hash).toBe('c=1f2a44-7a2e6b-e8735a-f6c48a-fbf4e6&h=auto');
+    expect(decodeHash(hash)?.locks).toEqual([false, false, false, false, false]);
+  });
+
+  it('round-trips every lock pattern, including all locked, with or without the #', () => {
+    for (let mask = 0; mask < 32; mask += 1) {
+      const locks = [0, 1, 2, 3, 4].map((i) => (mask & (1 << i)) !== 0);
+      const hash = encodeHash({ colors, locks, harmony: 'monochrome' });
+      expect(decodeHash(hash)?.locks).toEqual(locks);
+      expect(decodeHash(`#${hash}`)?.locks).toEqual(locks);
+    }
+  });
+
+  it('round-trips greys and pure black and white', () => {
+    const edges = ['#000000', '#808080', '#ffffff', '#111111', '#eeeeee'];
+    const hash = encodeHash({ colors: edges.map((h) => hexToOklch(h)!), locks: [true, true, true, true, true], harmony: 'auto' });
+    const back = decodeHash(hash);
+    expect(back?.colors.map(oklchToHex)).toEqual(edges);
+    expect(back?.locks.every(Boolean)).toBe(true);
+  });
+
+  it('treats a short or odd lock text as unlocked for the missing or unknown slots', () => {
+    expect(decodeHash('c=000000-111111-222222-333333-444444&lock=1x1')?.locks).toEqual([true, false, true, false, false]);
+  });
+
   it('rejects broken hashes and falls back to auto harmony', () => {
     expect(decodeHash('#c=zzzzzz-000000-000000-000000-000000')).toBeNull();
     expect(decodeHash('#c=000000-ffffff')).toBeNull();

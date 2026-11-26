@@ -1,22 +1,8 @@
+import { readStored, writeStored } from './storage';
+
 export type Theme = 'light' | 'dark';
 
-const KEY = 'palette-lab:theme';
-
-export function readStored(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-export function writeStored(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Storage can be unavailable (private mode, blocked site data); the app works without it.
-  }
-}
+export const THEME_KEY = 'palette-lab:theme';
 
 function systemTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -28,15 +14,19 @@ export function currentTheme(): Theme {
   return systemTheme();
 }
 
+/**
+ * Follows the system theme until the person picks one with the toggle; that choice is remembered.
+ * Calls `onChange` now and on every change, and returns the toggle.
+ */
 export function initTheme(onChange: (theme: Theme) => void): () => void {
-  const stored = readStored(KEY);
+  const stored = readStored(THEME_KEY);
   if (stored === 'light' || stored === 'dark') document.documentElement.dataset.theme = stored;
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => onChange(currentTheme()));
   onChange(currentTheme());
   return () => {
     const next: Theme = currentTheme() === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
-    writeStored(KEY, next);
+    writeStored(THEME_KEY, next);
     onChange(next);
   };
 }
