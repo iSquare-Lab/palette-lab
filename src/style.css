@@ -975,7 +975,7 @@ input[type='range']:focus-visible::-moz-range-thumb {
   height: 14px;
   border-radius: 50%;
   background: var(--dot);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 24%, transparent);
   vertical-align: middle;
 }
 
@@ -1461,6 +1461,11 @@ input[type='range']:focus-visible::-moz-range-thumb {
 @media (max-width: 600px) {
   .footer {
     padding-bottom: 72px;
+  }
+
+  /* The code scrolls sideways on a phone: start it below the Copy button so no line runs under it. */
+  .code {
+    padding-top: 60px;
   }
 
   .toast {
