@@ -681,7 +681,7 @@ button {
 
 .plane-axis {
   position: absolute;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1379,7 +1379,7 @@ input[type='range']:focus-visible::-moz-range-thumb {
   }
 
   .swatch-info {
-    padding-right: 96px;
+    padding-right: 104px;
   }
 
   .swatch-index {
@@ -1417,6 +1417,54 @@ input[type='range']:focus-visible::-moz-range-thumb {
 
   .mock-links {
     display: none;
+  }
+}
+
+/* Touch screens and phones: every control is at least 40px. */
+@media (max-width: 600px), (pointer: coarse) {
+  .btn-sm {
+    height: 40px;
+  }
+
+  .btn-sm.btn-ghost {
+    width: 40px;
+  }
+
+  .swatch-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .cell {
+    height: 40px;
+  }
+
+  .tab {
+    min-height: 40px;
+  }
+
+  input[type='range'] {
+    height: 40px;
+  }
+}
+
+/* Keyboard hints mean nothing without a keyboard. */
+@media (hover: none), (pointer: coarse) {
+  .footer-keys,
+  .btn-primary .kbd {
+    display: none;
+  }
+}
+
+/* The host page puts a 32px return button at the bottom-right corner: keep the end of the page and the toast clear
+   of it. */
+@media (max-width: 600px) {
+  .footer {
+    padding-bottom: 72px;
+  }
+
+  .toast {
+    bottom: 64px;
   }
 }
 
