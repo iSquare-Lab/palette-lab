@@ -16,7 +16,7 @@
   <body>
     <a class="skip-link" href="#swatches">Skip to the palette</a>
     <header class="topbar">
-      <a class="brand" href="./" aria-label="Palette Lab, start again">
+      <a class="brand" id="brand" href="./" aria-label="Palette Lab, start again with the example palette">
         <span class="brand-mark" id="brand-mark"></span>
         <span class="brand-name">Palette Lab</span>
       </a>
@@ -52,8 +52,8 @@
       </div>
       <section class="swatches" id="swatches" aria-label="Palette of five colours" tabindex="-1"></section>
 
-      <div class="workbench">
-        <section class="panel editor" aria-labelledby="editor-title">
+      <div class="workbench" id="workbench">
+        <section class="panel editor" id="editor-panel" aria-labelledby="editor-title">
           <header class="panel-head">
             <h2 id="editor-title" class="panel-title">Edit colour</h2>
             <span class="chip" id="editor-chip"></span>
@@ -135,7 +135,7 @@
             <h2 id="preview-title" class="panel-title">Live preview</h2>
             <span class="chip">Your palette on a page</span>
           </header>
-          <div class="mock" id="mock" aria-label="Example page styled with the palette" role="img">
+          <div class="mock" id="mock" role="group" aria-label="Example page styled with the palette">
             <div class="mock-nav">
               <span class="mock-logo"><span class="mock-dot"></span>Northwind</span>
               <span class="mock-links"><span>Work</span><span>Studio</span><span>Journal</span></span>
