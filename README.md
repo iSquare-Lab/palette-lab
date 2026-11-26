@@ -75,7 +75,7 @@ Node 22 or newer.
 
 `icon.svg` is the app's icon in listings and also its favicon: the build copies it into `dist/assets/`.
 
-Screenshots: [dark theme](docs/screenshot-dark.png).
+Screenshots: [dark theme](docs/screenshot-dark.png) (editor, contrast checker, live preview) and [light theme](docs/screenshot-light.png) (live preview and the Tailwind v4 export). `docs/icon.png` is a 512 px render of `icon.svg`.
 
 ## Sources and licences
 
