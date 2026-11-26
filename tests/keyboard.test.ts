@@ -51,14 +51,10 @@ describe('keyTargetOf', () => {
   // Just enough of the DOM element classes for the checks keyTargetOf makes.
   class FakeElement extends EventTarget {
     isContentEditable = false;
-    constructor(
-      readonly tag: string,
-      readonly focusVisible = false,
-    ) {
+    constructor(readonly tag: string) {
       super();
     }
     matches(selector: string): boolean {
-      if (selector === ':focus-visible') return this.focusVisible;
       return selector.split(', ').some((part) => part.split(/[[.]/)[0] === this.tag);
     }
   }
@@ -80,23 +76,25 @@ describe('keyTargetOf', () => {
 
   it('lets Space make a palette on a button that has focus only because it was clicked', () => {
     // The bug: clicking a swatch left focus on its Edit button, and Space pressed that button instead.
-    const clickedSwatch = new FakeElement('button', false);
-    expect(keyTargetOf(clickedSwatch)).toBe('other');
-    expect(shortcutFor(press(' '), keyTargetOf(clickedSwatch))).toEqual({ kind: 'generate' });
+    const swatch = new FakeElement('button');
+    expect(keyTargetOf(swatch, true)).toBe('other');
+    expect(shortcutFor(press(' '), keyTargetOf(swatch, true))).toEqual({ kind: 'generate' });
   });
 
   it('leaves Space to a button reached with the keyboard', () => {
-    expect(keyTargetOf(new FakeElement('button', true))).toBe('control');
-    expect(keyTargetOf(new FakeElement('a', true))).toBe('control');
+    expect(keyTargetOf(new FakeElement('button'), false)).toBe('control');
+    expect(keyTargetOf(new FakeElement('a'), false)).toBe('control');
+    expect(shortcutFor(press(' '), keyTargetOf(new FakeElement('button'), false))).toBeNull();
   });
 
   it('keeps every key for text fields and selects, but not for sliders', () => {
-    expect(keyTargetOf(new FakeInput('text'))).toBe('text');
-    expect(keyTargetOf(new FakeTextArea('textarea'))).toBe('text');
-    expect(keyTargetOf(new FakeSelect('select'))).toBe('text');
-    expect(keyTargetOf(new FakeInput('checkbox'))).toBe('control');
-    expect(keyTargetOf(new FakeInput('range'))).toBe('other');
-    expect(keyTargetOf(new FakeElement('section'))).toBe('other');
-    expect(keyTargetOf(null)).toBe('other');
+    expect(keyTargetOf(new FakeInput('text'), false)).toBe('text');
+    expect(keyTargetOf(new FakeInput('text'), true)).toBe('text');
+    expect(keyTargetOf(new FakeTextArea('textarea'), false)).toBe('text');
+    expect(keyTargetOf(new FakeSelect('select'), false)).toBe('text');
+    expect(keyTargetOf(new FakeInput('checkbox'), false)).toBe('control');
+    expect(keyTargetOf(new FakeInput('range'), false)).toBe('other');
+    expect(keyTargetOf(new FakeElement('section'), false)).toBe('other');
+    expect(keyTargetOf(null, false)).toBe('other');
   });
 });

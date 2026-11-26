@@ -46,8 +46,12 @@ export function shortcutFor(press: KeyPress, target: KeyTarget): Shortcut | null
 
 const SPACE_PRESSES_INPUT = new Set(['button', 'checkbox', 'radio', 'reset', 'submit']);
 
-/** Sorts the focused element into the targets above. A range slider is "other": Space does nothing on it. */
-export function keyTargetOf(target: EventTarget | null): KeyTarget {
+/**
+ * Sorts the focused element into the targets above. A range slider is "other": Space does nothing on it.
+ * `focusedByPointer` says the element got focus from a click or tap rather than from the keyboard. (The browser's
+ * own :focus-visible cannot tell: Chrome turns it on for the focused button as soon as any key is pressed.)
+ */
+export function keyTargetOf(target: EventTarget | null, focusedByPointer: boolean): KeyTarget {
   if (!(target instanceof HTMLElement)) return 'other';
   if (target.isContentEditable || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
     return 'text';
@@ -57,16 +61,29 @@ export function keyTargetOf(target: EventTarget | null): KeyTarget {
     return SPACE_PRESSES_INPUT.has(target.type) ? 'control' : 'text';
   }
   if (target.matches('button, a[href], [role="tab"], summary')) {
-    return target.matches(':focus-visible') ? 'control' : 'other';
+    return focusedByPointer ? 'other' : 'control';
   }
   return 'other';
 }
 
 /** Listens for the shortcuts on the whole document and runs `run` for each one. */
 export function initShortcuts(run: (shortcut: Shortcut) => void): void {
+  // Remember the element that a pointer press focused; focus that arrives any other way (Tab, script) clears it.
+  let pointerDown = false;
+  let pointerFocused: EventTarget | null = null;
+  const onPointerDown = (): void => {
+    pointerDown = true;
+    window.setTimeout(() => {
+      pointerDown = false;
+    });
+  };
+  document.addEventListener('pointerdown', onPointerDown, true);
+  document.addEventListener('focusin', (event) => {
+    pointerFocused = pointerDown ? event.target : null;
+  });
   document.addEventListener('keydown', (event) => {
     if (event.defaultPrevented) return;
-    const shortcut = shortcutFor(event, keyTargetOf(event.target));
+    const shortcut = shortcutFor(event, keyTargetOf(event.target, event.target === pointerFocused));
     if (!shortcut) return;
     // Space would otherwise scroll the page or press a clicked button.
     event.preventDefault();
