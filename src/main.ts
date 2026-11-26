@@ -33,17 +33,14 @@ const els = {
   mock: $<HTMLDivElement>('mock'),
 };
 
-/** Where a palette that was not generated here came from, for the note above the swatches. */
-let loadedFrom: 'link' | 'saved' | null = null;
-
 /* ---------- history ---------- */
 
-const history = new History();
+const undoHistory = new History();
 
 const snapshot = (): PaletteSnapshot => ({ colors: state.colors, locks: state.locks });
 
 function commit(): void {
-  history.push(snapshot());
+  undoHistory.push(snapshot());
   updateHistoryButtons();
 }
 
@@ -56,8 +53,8 @@ function restore(entry: PaletteSnapshot | null): void {
 }
 
 function updateHistoryButtons(): void {
-  els.undo.disabled = !history.canUndo;
-  els.redo.disabled = !history.canRedo;
+  els.undo.disabled = !undoHistory.canUndo;
+  els.redo.disabled = !undoHistory.canRedo;
 }
 
 /* ---------- swatches ---------- */
@@ -201,24 +198,31 @@ function generate(): void {
 function startOver(): void {
   applyShared({ colors: DEFAULT_PALETTE.map((c) => ({ ...c })), locks: state.locks.map(() => false), harmony: 'auto' });
   state.lastHarmony = null;
-  loadedFrom = null;
   commit();
   renderAll();
   window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   toast('Back to the example palette');
 }
 
+const EXAMPLE_HEXES = DEFAULT_PALETTE.map((c) => oklchToHex(c));
+
+/** Names what is on screen: the example palette, the harmony it was generated with, or the person's own palette. */
 function renderHarmonyNote(): void {
-  if (state.lastHarmony) els.harmonyNote.textContent = `${HARMONY_LABELS[state.lastHarmony]} palette`;
-  else if (loadedFrom === 'link') els.harmonyNote.textContent = 'Palette from a shared link';
-  else if (loadedFrom === 'saved') els.harmonyNote.textContent = 'Your last palette';
-  else els.harmonyNote.textContent = 'Example palette · Dusk, five tones from ink to cream';
+  const isExample = state.colors.every((c, i) => oklchToHex(c) === EXAMPLE_HEXES[i]);
+  const note = isExample
+    ? 'Example palette · Dusk, five tones from ink to cream'
+    : state.lastHarmony
+      ? `${HARMONY_LABELS[state.lastHarmony]} palette`
+      : 'Your palette';
+  // The note is a live region: only touch it when it changes, so dragging a slider is not read out again and again.
+  if (els.harmonyNote.textContent !== note) els.harmonyNote.textContent = note;
 }
 
 /* ---------- editing ---------- */
 
 function updateSelected(next: Oklch, syncInputs: boolean): void {
   state.colors[state.selected] = next;
+  renderHarmonyNote();
   renderSwatches();
   renderEditor(syncInputs);
   renderContrast();
@@ -282,7 +286,6 @@ window.addEventListener('hashchange', () => {
   applyShared(decoded);
   lastHash = window.location.hash.replace(/^#/, '');
   state.lastHarmony = null;
-  loadedFrom = 'link';
   commit();
   renderAll();
 });
@@ -323,8 +326,8 @@ els.generateIcon.innerHTML = icons.shuffle;
 els.generate.addEventListener('click', generate);
 els.undo.innerHTML = icons.undo;
 els.redo.innerHTML = icons.redo;
-els.undo.addEventListener('click', () => restore(history.undo()));
-els.redo.addEventListener('click', () => restore(history.redo()));
+els.undo.addEventListener('click', () => restore(undoHistory.undo()));
+els.redo.addEventListener('click', () => restore(undoHistory.redo()));
 
 const toggleTheme = initTheme((theme) => {
   els.theme.innerHTML = theme === 'dark' ? icons.sun : icons.moon;
@@ -343,10 +346,10 @@ initShortcuts((shortcut) => {
       generate();
       break;
     case 'undo':
-      restore(history.undo());
+      restore(undoHistory.undo());
       break;
     case 'redo':
-      restore(history.redo());
+      restore(undoHistory.redo());
       break;
     case 'select':
       selectSwatch(shortcut.index);
@@ -368,10 +371,8 @@ const saved = fromLink ? null : loadSavedPalette();
 if (fromLink) {
   applyShared(fromLink);
   lastHash = window.location.hash.replace(/^#/, '');
-  loadedFrom = 'link';
 } else if (saved) {
   applyShared(saved);
-  loadedFrom = 'saved';
 }
 commit();
 renderAll();
