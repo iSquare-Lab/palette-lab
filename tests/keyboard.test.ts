@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { keyTargetOf, shortcutFor, type KeyPress } from '../src/keyboard';
+import { initShortcuts, keyTargetOf, repeats, shortcutFor, type KeyPress } from '../src/keyboard';
 
 const press = (key: string, extra: Partial<KeyPress> = {}): KeyPress => ({
   key,
@@ -44,6 +44,20 @@ describe('shortcutFor', () => {
     expect(shortcutFor(press('l', { metaKey: true }), 'other')).toBeNull();
     expect(shortcutFor(press('1', { altKey: true }), 'other')).toBeNull();
     expect(shortcutFor(press('Enter', { code: 'Enter' }), 'other')).toBeNull();
+  });
+});
+
+describe('repeats', () => {
+  it('makes one palette per Space press, however long it is held', () => {
+    expect(repeats({ kind: 'generate' })).toBe(false);
+    expect(repeats({ kind: 'lock' })).toBe(false);
+    expect(repeats({ kind: 'copy' })).toBe(false);
+  });
+
+  it('lets undo, redo and picking a colour repeat while held', () => {
+    expect(repeats({ kind: 'undo' })).toBe(true);
+    expect(repeats({ kind: 'redo' })).toBe(true);
+    expect(repeats({ kind: 'select', index: 2 })).toBe(true);
   });
 });
 
@@ -96,5 +110,50 @@ describe('keyTargetOf', () => {
     expect(keyTargetOf(new FakeInput('range'), false)).toBe('other');
     expect(keyTargetOf(new FakeElement('section'), false)).toBe('other');
     expect(keyTargetOf(null, false)).toBe('other');
+  });
+});
+
+/** A key event as initShortcuts reads it. */
+const keyEvent = (type: string, init: Partial<KeyPress> & { repeat?: boolean } = {}): Event =>
+  Object.assign(new Event(type, { cancelable: true }), { ...press(' '), repeat: false, ...init });
+
+/** A document to listen on; no element is focused, so every key lands on it. */
+function listen(): { doc: EventTarget; ran: string[] } {
+  const doc = new EventTarget();
+  vi.stubGlobal('document', doc);
+  vi.stubGlobal('window', { setTimeout: (fn: () => void) => setTimeout(fn) });
+  vi.stubGlobal('HTMLElement', class NoElement extends Error {});
+  const ran: string[] = [];
+  initShortcuts((shortcut) => ran.push(shortcut.kind));
+  return { doc, ran };
+}
+
+describe('initShortcuts', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('makes one palette for a held Space and cancels its release', () => {
+    const { doc, ran } = listen();
+    const first = keyEvent('keydown');
+    const held = keyEvent('keydown', { repeat: true });
+    doc.dispatchEvent(first);
+    doc.dispatchEvent(held);
+    expect(ran).toEqual(['generate']);
+    expect(first.defaultPrevented).toBe(true);
+    expect(held.defaultPrevented).toBe(true);
+
+    const release = keyEvent('keyup');
+    doc.dispatchEvent(release);
+    expect(release.defaultPrevented).toBe(true);
+    // A later release of a Space the app did not use is left alone.
+    const other = keyEvent('keyup');
+    doc.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
+  });
+
+  it('keeps undoing while Ctrl+Z is held', () => {
+    const { doc, ran } = listen();
+    doc.dispatchEvent(keyEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true }));
+    doc.dispatchEvent(keyEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true, repeat: true }));
+    expect(ran).toEqual(['undo', 'undo']);
   });
 });

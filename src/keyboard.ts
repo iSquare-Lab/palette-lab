@@ -66,6 +66,14 @@ export function keyTargetOf(target: EventTarget | null, focusedByPointer: boolea
   return 'other';
 }
 
+/**
+ * Whether a held key keeps running the shortcut. Undo, redo and picking a colour may repeat; a new palette, a lock
+ * and a copy run once per press, so holding Space does not flood the undo list with palettes.
+ */
+export function repeats(shortcut: Shortcut): boolean {
+  return shortcut.kind === 'undo' || shortcut.kind === 'redo' || shortcut.kind === 'select';
+}
+
 /** Listens for the shortcuts on the whole document and runs `run` for each one. */
 export function initShortcuts(run: (shortcut: Shortcut) => void): void {
   // Remember the element that a pointer press focused; focus that arrives any other way (Tab, script) clears it.
@@ -81,12 +89,20 @@ export function initShortcuts(run: (shortcut: Shortcut) => void): void {
   document.addEventListener('focusin', (event) => {
     pointerFocused = pointerDown ? event.target : null;
   });
+  let spaceTaken = false;
   document.addEventListener('keydown', (event) => {
     if (event.defaultPrevented) return;
     const shortcut = shortcutFor(event, keyTargetOf(event.target, event.target === pointerFocused));
     if (!shortcut) return;
     // Space would otherwise scroll the page or press a clicked button.
     event.preventDefault();
-    run(shortcut);
+    if (shortcut.kind === 'generate') spaceTaken = true;
+    if (!event.repeat || repeats(shortcut)) run(shortcut);
+  });
+  // Firefox presses a focused button when Space comes back up, so the release of a Space we used is cancelled too.
+  document.addEventListener('keyup', (event) => {
+    if (!spaceTaken || (event.code !== 'Space' && event.key !== ' ')) return;
+    spaceTaken = false;
+    event.preventDefault();
   });
 }
