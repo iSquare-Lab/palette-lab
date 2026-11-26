@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  contrastLevel,
   contrastRatio,
   formatOklch,
+  formatRatio,
   formatRgb,
   hexToOklch,
   hexToRgb,
   inGamut,
+  keepHue,
   maxChromaFor,
   oklchToHex,
   oklchToRgb,
@@ -17,6 +20,8 @@ import {
   toGamut,
   wcagLevels,
 } from '../src/color';
+
+const hueOfHex = (hex: string): number => hexToOklch(hex)!.h;
 
 const rgb = (hex: string) => {
   const value = hexToRgb(hex);
@@ -130,5 +135,75 @@ describe('WCAG 2 contrast', () => {
   it('picks the more readable text colour', () => {
     expect(readableOn(rgb('#ffeeaa'))).toBe('#000000');
     expect(readableOn(rgb('#1f2a44'))).toBe('#ffffff');
+  });
+});
+
+describe('alpha in hex', () => {
+  it('accepts #rgba and #rrggbbaa and drops the alpha', () => {
+    expect(hexToRgb('#ff800080')).toEqual(hexToRgb('#ff8000'));
+    expect(hexToRgb('0f0c')).toEqual(hexToRgb('#00ff00'));
+    expect(hexToRgb('#ff80008')).toBeNull();
+  });
+});
+
+describe('greys keep their hue', () => {
+  it('gives a grey hex no hue of its own (0, which is red)', () => {
+    expect(hexToOklch('#808080')?.h).toBe(0);
+  });
+
+  it('keeps the previous hue when an edit turns the colour grey', () => {
+    const before = { l: 0.6, c: 0.12, h: 250 };
+    const greyHex = hexToOklch('#808080')!;
+    const kept = keepHue(greyHex, before);
+    expect(kept.h).toBe(250);
+    expect(kept.l).toBe(greyHex.l);
+    expect(kept.c).toBe(greyHex.c);
+    // Raising chroma again (slider or plane) now stays blue instead of jumping to red.
+    expect(oklchToHex({ ...kept, c: 0.1 })).toBe(oklchToHex({ l: kept.l, c: 0.1, h: 250 }));
+    expect(hueOfHex(oklchToHex({ ...kept, c: 0.1 }))).toBeCloseTo(250, 0);
+  });
+
+  it('takes the new hue when the new colour has one', () => {
+    const red = hexToOklch('#e76f51')!;
+    expect(keepHue(red, { l: 0.5, c: 0.1, h: 250 })).toEqual(red);
+  });
+});
+
+describe('ratio display', () => {
+  it('cuts ratios down instead of rounding them up', () => {
+    expect(formatRatio(4.499)).toBe('4.49');
+    expect(formatRatio(4.46, 1)).toBe('4.4');
+    expect(formatRatio(4.5, 1)).toBe('4.5');
+    expect(formatRatio(6.99, 1)).toBe('6.9');
+    expect(formatRatio(1)).toBe('1.00');
+    expect(formatRatio(4.6)).toBe('4.60');
+    expect(formatRatio(2.9999999999)).toBe('2.99');
+    expect(formatRatio(4.4999999999, 1)).toBe('4.4');
+  });
+
+  it('reads black on white as 21, not 20.99', () => {
+    const ratio = contrastRatio(rgb('#000000'), rgb('#ffffff'));
+    expect(formatRatio(ratio)).toBe('21.00');
+    expect(formatRatio(ratio, 1)).toBe('21.0');
+  });
+
+  it('never shows a passing number on a failing level', () => {
+    // #777 on white is 4.48:1: below AA. It used to show "4.5" in a cell coloured as a fail.
+    const ratio = contrastRatio(rgb('#777777'), rgb('#ffffff'));
+    expect(contrastLevel(ratio)).toBe('large');
+    expect(formatRatio(ratio, 1)).toBe('4.4');
+    for (let r = 1; r <= 21; r += 0.001) {
+      const shown = Number(formatRatio(r, 1));
+      expect(contrastLevel(shown)).toBe(contrastLevel(r));
+    }
+  });
+
+  it('names the best level reached', () => {
+    expect(contrastLevel(7)).toBe('aaa');
+    expect(contrastLevel(6.99)).toBe('aa');
+    expect(contrastLevel(4.5)).toBe('aa');
+    expect(contrastLevel(4.49)).toBe('large');
+    expect(contrastLevel(3)).toBe('large');
+    expect(contrastLevel(2.99)).toBe('fail');
   });
 });

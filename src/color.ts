@@ -25,6 +25,9 @@ export interface Oklch {
 
 export const MAX_CHROMA = 0.37;
 
+/** Below this chroma a colour is a grey and its hue carries no information. */
+export const ACHROMATIC_CHROMA = 1e-4;
+
 export function srgbToLinear(channel: number): number {
   const abs = Math.abs(channel);
   const sign = channel < 0 ? -1 : 1;
@@ -69,7 +72,7 @@ export function normalizeHue(h: number): number {
 
 export function oklabToOklch({ l, a, b }: Oklab): Oklch {
   const c = Math.hypot(a, b);
-  const h = c < 1e-4 ? 0 : normalizeHue((Math.atan2(b, a) * 180) / Math.PI);
+  const h = c < ACHROMATIC_CHROMA ? 0 : normalizeHue((Math.atan2(b, a) * 180) / Math.PI);
   return { l, c, h };
 }
 
@@ -93,7 +96,11 @@ export function inGamut({ r, g, b }: Rgb, epsilon = 1e-4): boolean {
   );
 }
 
-/** The largest chroma that stays inside sRGB for a lightness and hue (binary search). */
+/**
+ * The largest chroma that stays inside sRGB for a lightness and hue (binary search).
+ * The search assumes that, at a fixed lightness and hue, every chroma below the gamut edge is in gamut
+ * and every chroma above it is out, which holds for sRGB in OKLCH.
+ */
 export function maxChromaFor(l: number, h: number): number {
   if (l <= 0 || l >= 1) return 0;
   let lo = 0;
@@ -132,9 +139,13 @@ export function rgbToHex(rgb: Rgb): string {
     .join('')}`;
 }
 
-/** Parses #rgb, #rrggbb (with or without #). Returns null when the text is not a hex colour. */
+/**
+ * Parses #rgb, #rrggbb, #rgba and #rrggbbaa (with or without #). The alpha digits are accepted and dropped,
+ * since a palette colour is always opaque. Returns null when the text is not a hex colour.
+ */
 export function hexToRgb(hex: string): Rgb | null {
   let text = hex.trim().replace(/^#/, '').toLowerCase();
+  if (/^[0-9a-f]{4}$/.test(text) || /^[0-9a-f]{8}$/.test(text)) text = text.slice(0, -text.length / 4);
   if (/^[0-9a-f]{3}$/.test(text)) {
     text = text
       .split('')
@@ -149,6 +160,14 @@ export function hexToRgb(hex: string): Rgb | null {
 export function hexToOklch(hex: string): Oklch | null {
   const rgb = hexToRgb(hex);
   return rgb ? rgbToOklch(rgb) : null;
+}
+
+/**
+ * A grey has no hue of its own (OKLCH reports 0, which is red). When an edit turns a colour grey, keep the hue
+ * it had, so raising its chroma again or dragging on the plane stays on that hue instead of jumping to red.
+ */
+export function keepHue(next: Oklch, previous: Oklch): Oklch {
+  return next.c < ACHROMATIC_CHROMA ? { ...next, h: previous.h } : next;
 }
 
 /** The displayable hex for an OKLCH colour (gamut-mapped first). */
@@ -182,6 +201,29 @@ export function wcagLevels(ratio: number): WcagResult {
   return { aaNormal: ratio >= 4.5, aaLarge: ratio >= 3, aaaNormal: ratio >= 7, aaaLarge: ratio >= 4.5 };
 }
 
+export type ContrastLevel = 'aaa' | 'aa' | 'large' | 'fail';
+
+/** The best level a ratio reaches: AAA body text, AA body text, AA large text only, or none. */
+export function contrastLevel(ratio: number): ContrastLevel {
+  const levels = wcagLevels(ratio);
+  if (levels.aaaNormal) return 'aaa';
+  if (levels.aaNormal) return 'aa';
+  return levels.aaLarge ? 'large' : 'fail';
+}
+
+/**
+ * Writes a contrast ratio cut down (never rounded up) to `digits` decimals, so a ratio that fails a threshold never
+ * reads as passing it: 4.499 shows as 4.49 and 4.46 as 4.4.
+ */
+export function formatRatio(ratio: number, digits = 2): string {
+  const scale = 10 ** digits;
+  // The nudge absorbs floating-point noise: 4.6 × 100 is 459.99999999999994, which would show as 4.59.
+  let cut = Math.floor(ratio * scale + 1e-6) / scale;
+  // A ratio a hair under a WCAG threshold must still read under it.
+  if (contrastLevel(cut) !== contrastLevel(ratio)) cut -= 1 / scale;
+  return cut.toFixed(digits);
+}
+
 /** Black or white, whichever reads better on the colour. */
 export function readableOn(rgb: Rgb): '#000000' | '#ffffff' {
   const white = contrastRatio(rgb, { r: 1, g: 1, b: 1 });
@@ -195,7 +237,7 @@ const trim = (n: number, digits: number): string => {
 };
 
 export function formatOklch({ l, c, h }: Oklch): string {
-  return `oklch(${trim(l * 100, 1)}% ${trim(c, 3)} ${trim(c < 1e-4 ? 0 : h, 1)})`;
+  return `oklch(${trim(l * 100, 1)}% ${trim(c, 3)} ${trim(c < ACHROMATIC_CHROMA ? 0 : h, 1)})`;
 }
 
 export function formatRgb(rgb: Rgb): string {
